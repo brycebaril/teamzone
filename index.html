@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Timezone Tracker - A simple tool to track team members across different time zones">
+    <meta name="author" content="Timezone Tracker">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>">
+    <title>Timezone Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Emoji Picker Web Component -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+    <style>
+        :root {
+            --ns-green: #80bd01;
+            --ns-dark: #333333;
+            --ns-darker: #1a1a1a;
+            --ns-light: #f5f5f5;
+            --ns-accent: #44883e;
+            --ns-gray: #666666;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--ns-dark);
+            color: var(--ns-light);
+        }
+        .timeline-icon {
+            transition: left 1s linear;
+            z-index: 10;
+            font-size: 1.5rem; /* Larger emoji */
+            line-height: 1;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+            user-select: none;
+            /* For vertical centering within its lane */
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .timeline-icon .icon-label {
+            display: none;
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--ns-darker);
+            color: var(--ns-light);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .timeline-icon:hover .icon-label {
+            display: block;
+        }
+        .form-input {
+            border-radius: 0.375rem;
+            border: 1px solid var(--ns-gray);
+            padding: 0.5rem 0.75rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background-color: var(--ns-darker);
+            color: var(--ns-light);
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--ns-green);
+            box-shadow: 0 0 0 2px rgba(128, 189, 1, 0.4);
+        }
+        /* Style for the emoji picker modal */
+        #emoji-modal {
+            transition: opacity 0.2s ease-in-out;
+        }
+        emoji-picker {
+            width: 100%;
+            height: 300px;
+            --background: #333333;
+            --border-color: #444444;
+            --category-emoji-padding: 0.5rem;
+            --emoji-padding: 0.4rem;
+            --indicator-color: #80bd01;
+            --input-border-color: #444444;
+            --input-font-color: #f5f5f5;
+            --input-placeholder-color: #888888;
+            --outline-color: #80bd01;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 sm:p-6 lg:p-8">
+
+    <div class="w-full max-w-4xl bg-gradient-to-b from-[#333333] to-[#1a1a1a] rounded-2xl shadow-lg p-6 sm:p-8 space-y-8 border border-[#444444]">
+        <!-- Unified Timeline Section - Dynamically sized -->
+        <div id="timeline-wrapper" class="relative w-full pt-10 transition-all duration-300 ease-in-out">
+            <!-- Timeline bar that resizes -->
+            <div id="timeline-bar" class="absolute bottom-10 w-full bg-[#444444] rounded-lg">
+                <!-- Night Highlight (e.g. 10pm to 6am) -->
+                <div id="night-highlight-early" class="absolute h-full bg-[#1a1a1a] bg-opacity-70 rounded-l-lg"></div>
+                <div id="night-highlight-late" class="absolute h-full bg-[#1a1a1a] bg-opacity-70 rounded-r-lg"></div>
+                <!-- Working Hours Highlight -->
+                <div id="working-hours-highlight" class="absolute h-full bg-[#80bd01] bg-opacity-50"></div>
+            </div>
+            <div id="icon-container" class="absolute bottom-10 w-full"></div>
+            <div class="absolute bottom-2 w-full flex justify-between text-xs text-gray-400 px-1">
+                <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+            </div>
+        </div>
+
+        <!-- Container for the list of people -->
+        <div id="people-container" class="space-y-4"></div>
+
+        <!-- Add Person Button -->
+        <div class="flex justify-center gap-4 pt-4">
+            <button id="add-person-btn" class="bg-[#80bd01] hover:bg-[#44883e] text-white font-bold py-2 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                Add New Person
+            </button>
+            <button id="reset-btn" class="bg-[#333333] hover:bg-[#444444] text-white border border-[#444444] font-bold py-2 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105">
+                Reset Data
+            </button>
+        </div>
+    </div>
+    
+    <!-- Emoji Picker Modal -->
+    <div id="emoji-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+        <div class="bg-[#333333] border border-[#444444] rounded-lg shadow-xl p-2 sm:p-4 max-w-xs w-full">
+            <emoji-picker class="light"></emoji-picker>
+        </div>
+    </div>
+
+
+    <script>
+        // --- DATA & CONFIG ---
+        const workingHours = { start: 9, end: 17 }; // 9am to 5pm
+        const nightHours = { start: 22, end: 6 }; // 10pm to 6am
+        
+        // Initial dataset - ordered by timezone (west to east)
+        const initialPeople = [
+            // Pacific Time - America/Los_Angeles
+            { id: crypto.randomUUID(), name: 'Braden', timezone: 'America/Los_Angeles', city: 'Los Angeles', emoji: '🎥' },
+            { id: crypto.randomUUID(), name: 'Jackson', timezone: 'America/Los_Angeles', city: 'Seattle', emoji: '👾' },
+            { id: crypto.randomUUID(), name: 'Jaz', timezone: 'America/Los_Angeles', city: 'California', emoji: '🕺' },
+            { id: crypto.randomUUID(), name: 'Russ', timezone: 'America/Los_Angeles', city: 'Seattle', emoji: '😎' },
+            
+            // Pacific Time - America/Vancouver (same as Los Angeles)
+            { id: crypto.randomUUID(), name: 'Bryce', timezone: 'America/Vancouver', city: 'Vancouver BC', emoji: '🎨' },
+            
+            // Mountain Time
+            { id: crypto.randomUUID(), name: 'Derek', timezone: 'America/Denver', city: 'South Dakota', emoji: '🎮' },
+            
+            // Colombia Time - America/Bogota
+            { id: crypto.randomUUID(), name: 'Adrian', timezone: 'America/Bogota', city: 'Medellin Colombia', emoji: '🤿' },
+            { id: crypto.randomUUID(), name: 'Alejandro', timezone: 'America/Bogota', city: 'Medellin', emoji: '🐉' },
+            { id: crypto.randomUUID(), name: 'Wbert', timezone: 'America/Bogota', city: 'Medellin', emoji: '🥼' },
+            { id: crypto.randomUUID(), name: 'Elizabeth', timezone: 'America/Bogota', city: 'Medellin', emoji: '🧪' },
+            { id: crypto.randomUUID(), name: 'Jeff', timezone: 'America/Bogota', city: 'Medellin', emoji: '👨‍💻' },
+            { id: crypto.randomUUID(), name: 'John', timezone: 'America/Bogota', city: 'Medellin', emoji: '💻' },
+            { id: crypto.randomUUID(), name: 'Juan', timezone: 'America/Bogota', city: 'Medellin', emoji: '📚' },
+            { id: crypto.randomUUID(), name: 'Mafe', timezone: 'America/Bogota', city: 'Medellin', emoji: '🛵' },
+            { id: crypto.randomUUID(), name: 'Lizz', timezone: 'America/Bogota', city: 'Medellin', emoji: '🌞' },
+            { id: crypto.randomUUID(), name: 'Mayerli', timezone: 'America/Bogota', city: 'Medellin', emoji: '👩‍🎓' },
+            
+            // Brazil Time - America/Sao_Paulo
+            { id: crypto.randomUUID(), name: 'Rafa', timezone: 'America/Sao_Paulo', city: 'Sao Paulo Brazil', emoji: '🎤' },
+            
+            // Argentina Time - America/Argentina/Buenos_Aires
+            { id: crypto.randomUUID(), name: 'Moises', timezone: 'America/Argentina/Buenos_Aires', city: 'Argentina', emoji: '⚽' },
+            
+            // Central European Time - Europe/Madrid
+            { id: crypto.randomUUID(), name: 'Santi', timezone: 'Europe/Madrid', city: 'Madrid', emoji: '🎸' },
+            { id: crypto.randomUUID(), name: 'Ulises', timezone: 'Europe/Madrid', city: 'Madrid', emoji: '🦾' },
+            
+            // Central European Time - Europe/Berlin (same as Madrid)
+            { id: crypto.randomUUID(), name: 'Cesar', timezone: 'Europe/Berlin', city: 'Berlin', emoji: '📡' },
+            
+            // Korea Time - Asia/Seoul
+            { id: crypto.randomUUID(), name: 'Minwoo', timezone: 'Asia/Seoul', city: 'Seoul', emoji: '🖐️' }
+        ];
+        
+        // Load data from localStorage or use initial dataset
+        let people = JSON.parse(localStorage.getItem('teamzone-people')) || initialPeople;
+        const timezones = [
+            'UTC', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Africa/Cairo',
+            'Asia/Dubai', 'Asia/Kolkata', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Tokyo',
+            'Australia/Sydney', 'Australia/Perth', 'Pacific/Auckland', 'America/Sao_Paulo',
+            'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'
+        ];
+
+        const peopleContainer = document.getElementById('people-container');
+        const iconContainer = document.getElementById('icon-container');
+        const timelineWrapper = document.getElementById('timeline-wrapper');
+        const timelineBar = document.getElementById('timeline-bar');
+        const workingHoursHighlight = document.getElementById('working-hours-highlight');
+        const nightHighlightEarly = document.getElementById('night-highlight-early');
+        const nightHighlightLate = document.getElementById('night-highlight-late');
+        const addPersonBtn = document.getElementById('add-person-btn');
+        const emojiModal = document.getElementById('emoji-modal');
+        const emojiPicker = document.querySelector('emoji-picker');
+        
+        let currentEmojiPickerIndex = null;
+
+        /**
+         * Renders all UI components from the `people` array.
+         */
+        function renderUI() {
+            peopleContainer.innerHTML = '';
+            iconContainer.innerHTML = '';
+
+            // --- Dynamic Height Calculation for Lanes ---
+            const laneHeight = 32; // Height in pixels for each person's lane
+            const totalTimelineHeight = Math.max(laneHeight * people.length, 40); // Min height 40px
+            timelineWrapper.style.height = `${totalTimelineHeight + 48}px`; // Add space for labels
+            iconContainer.style.height = `${totalTimelineHeight}px`;
+            timelineBar.style.height = `${totalTimelineHeight}px`;
+
+            // Set up time highlights
+            const workStartPercent = (workingHours.start / 24) * 100;
+            const workWidthPercent = ((workingHours.end - workingHours.start) / 24) * 100;
+            workingHoursHighlight.style.left = `${workStartPercent}%`;
+            workingHoursHighlight.style.width = `${workWidthPercent}%`;
+            
+            const nightStartPercent = (nightHours.start / 24) * 100;
+            const nightEndPercent = (nightHours.end / 24) * 100;
+            nightHighlightLate.style.left = `${nightStartPercent}%`;
+            nightHighlightLate.style.width = `${100 - nightStartPercent}%`;
+            nightHighlightEarly.style.left = '0%';
+            nightHighlightEarly.style.width = `${nightEndPercent}%`;
+
+            // Create list items, lanes, and icons
+            people.forEach((person, index) => {
+                createPersonRow(person, index);
+                createTimelineLane(person, index, laneHeight);
+            });
+            updateTimelines();
+        }
+
+        /**
+         * Creates a single person's row in the list.
+         */
+        function createPersonRow(person, index) {
+            const personElement = document.createElement('div');
+            personElement.className = 'person-row grid grid-cols-1 sm:grid-cols-12 gap-3 items-center p-3 border border-[#444444] rounded-lg bg-[#2a2a2a] hover:bg-[#333333] transition-colors';
+            personElement.dataset.id = person.id;
+
+            const timezoneOptions = timezones.map(tz => `<option value="${tz}" ${person.timezone === tz ? 'selected' : ''}>${tz.replace(/_/g, ' ')}</option>`).join('');
+
+            personElement.innerHTML = `
+                <div class="sm:col-span-1 flex items-center justify-center">
+                    <button class="emoji-button text-3xl bg-[#1a1a1a] rounded-lg w-14 h-14 flex items-center justify-center cursor-pointer border border-[#444444] hover:border-[#80bd01] transition-colors">${person.emoji}</button>
+                </div>
+                <div class="sm:col-span-3">
+                    <input type="text" value="${person.name}" placeholder="Name" class="name-input w-full font-semibold form-input">
+                </div>
+                <div class="sm:col-span-3">
+                    <input type="text" value="${person.city}" placeholder="City" class="city-input w-full text-sm form-input">
+                </div>
+                <div class="sm:col-span-3">
+                    <select class="timezone-select w-full text-sm form-input">${timezoneOptions}</select>
+                </div>
+                <div class="sm:col-span-2 flex items-center justify-between">
+                    <div id="time-${index}" class="font-mono text-[#80bd01] text-sm">--:--:--</div>
+                    <button class="remove-btn text-[#ff6b6b] hover:text-[#ff4040] font-bold text-xl" title="Remove Person">&times;</button>
+                </div>
+            `;
+            peopleContainer.appendChild(personElement);
+
+            // Add event listeners for this new row
+            personElement.querySelector('.remove-btn').addEventListener('click', () => removePerson(person.id));
+            personElement.querySelector('.emoji-button').addEventListener('click', () => openEmojiPicker(index));
+            ['.name-input', '.city-input', '.timezone-select'].forEach(selector => {
+                personElement.querySelector(selector).addEventListener('input', () => handleInputChange(index));
+            });
+        }
+
+        /**
+         * Creates a dedicated horizontal lane and icon for a person on the timeline.
+         */
+        function createTimelineLane(person, index, laneHeight) {
+            const iconElement = document.createElement('div');
+            iconElement.id = `icon-${index}`;
+            iconElement.className = 'timeline-icon cursor-pointer';
+            iconElement.style.top = `${index * laneHeight + (laneHeight / 2)}px`; // Position lane vertically
+            iconElement.innerHTML = `${person.emoji}<div class="icon-label">${person.name}</div>`;
+            iconContainer.appendChild(iconElement);
+        }
+        
+        function handleInputChange(index) {
+            const row = peopleContainer.querySelector(`.person-row[data-id='${people[index].id}']`);
+            if (!row) return;
+            people[index].name = row.querySelector('.name-input').value;
+            people[index].city = row.querySelector('.city-input').value;
+            people[index].timezone = row.querySelector('.timezone-select').value;
+            updateTimelines();
+            saveToLocalStorage();
+        }
+
+        function openEmojiPicker(index) {
+            currentEmojiPickerIndex = index;
+            emojiModal.classList.remove('hidden');
+        }
+
+        function addPerson() {
+            people.push({ id: crypto.randomUUID(), name: 'New Person', timezone: 'UTC', city: 'City', emoji: '🙂' });
+            renderUI();
+            saveToLocalStorage();
+        }
+
+        function removePerson(idToRemove) {
+            people = people.filter(p => p.id !== idToRemove);
+            renderUI();
+            saveToLocalStorage();
+        }
+
+        function updateTimelines() {
+            const now = new Date();
+            people.forEach((person, index) => {
+                try {
+                    const timeString = now.toLocaleTimeString('en-US', { timeZone: person.timezone, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const displayTimeString = now.toLocaleTimeString('en-US', { timeZone: person.timezone, hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' });
+                    
+                    const [hours, minutes, seconds] = timeString.split(':').map(Number);
+                    const totalSecondsInDay = (hours * 3600) + (minutes * 60) + seconds;
+                    const percentageOfDay = (totalSecondsInDay / 86400) * 100;
+
+                    const icon = document.getElementById(`icon-${index}`);
+                    const timeDisplay = document.getElementById(`time-${index}`);
+                    
+                    if (icon) {
+                        icon.style.left = `calc(${percentageOfDay}% - 12px)`; // Center emoji
+                        const currentEmoji = icon.firstChild.textContent;
+                        if(currentEmoji !== person.emoji) {
+                           icon.innerHTML = `${person.emoji}<div class="icon-label">${person.name}</div>`;
+                        }
+                    }
+                    if (timeDisplay) {
+                        timeDisplay.textContent = displayTimeString;
+                    }
+                } catch (error) {
+                    const timeDisplay = document.getElementById(`time-${index}`);
+                    if (timeDisplay) timeDisplay.textContent = "Invalid TZ";
+                }
+            });
+        }
+
+// --- Main Execution & Event Listeners ---
+addPersonBtn.addEventListener('click', addPerson);
+document.getElementById('reset-btn').addEventListener('click', resetToInitialData);
+emojiPicker.addEventListener('emoji-click', event => {
+    if (currentEmojiPickerIndex !== null) {
+        people[currentEmojiPickerIndex].emoji = event.detail.unicode;
+        emojiModal.classList.add('hidden');
+        renderUI();
+        saveToLocalStorage();
+        currentEmojiPickerIndex = null;
+    }
+});
+emojiModal.addEventListener('click', event => {
+    if (event.target === emojiModal) {
+        emojiModal.classList.add('hidden');
+        currentEmojiPickerIndex = null;
+    }
+});
+
+// Function to save data to localStorage
+function saveToLocalStorage() {
+    localStorage.setItem('teamzone-people', JSON.stringify(people));
+}
+
+// Function to reset to initial dataset
+function resetToInitialData() {
+    if (confirm('Are you sure you want to reset to the initial dataset? This will remove all your changes.')) {
+        people = JSON.parse(JSON.stringify(initialPeople)); // Deep clone
+        saveToLocalStorage();
+        renderUI();
+    }
+}
+
+// Initialize the application
+renderUI();
+setInterval(updateTimelines, 1000);
+    </script>
+
+</body>
+</html>
