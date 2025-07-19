@@ -178,10 +178,86 @@
         // Load data from localStorage or use initial dataset
         let people = JSON.parse(localStorage.getItem('teamzone-people')) || initialPeople;
         const timezones = [
-            'UTC', 'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Africa/Cairo',
-            'Asia/Dubai', 'Asia/Kolkata', 'Asia/Bangkok', 'Asia/Singapore', 'Asia/Tokyo',
-            'Australia/Sydney', 'Australia/Perth', 'Pacific/Auckland', 'America/Sao_Paulo',
-            'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'America/Anchorage', 'Pacific/Honolulu'
+            // UTC
+            'UTC',
+            
+            // Americas (North, Central, South)
+            'America/Los_Angeles',  // Pacific Time
+            'America/Denver',       // Mountain Time
+            'America/Chicago',      // Central Time
+            'America/New_York',     // Eastern Time
+            'America/Anchorage',    // Alaska Time
+            'Pacific/Honolulu',     // Hawaii Time
+            'America/Phoenix',      // Arizona (no DST)
+            'America/Bogota',       // Colombia
+            'America/Mexico_City',  // Mexico
+            'America/Costa_Rica',   // Costa Rica
+            'America/Panama',       // Panama
+            'America/Sao_Paulo',    // Brazil
+            'America/Argentina/Buenos_Aires', // Argentina
+            'America/Santiago',     // Chile
+            'America/Lima',         // Peru
+            'America/Caracas',      // Venezuela
+            'America/Vancouver',    // Vancouver
+            
+            // Europe
+            'Europe/London',        // UK
+            'Europe/Dublin',        // Ireland
+            'Europe/Paris',         // France
+            'Europe/Madrid',        // Spain
+            'Europe/Berlin',        // Germany
+            'Europe/Rome',          // Italy
+            'Europe/Amsterdam',     // Netherlands
+            'Europe/Brussels',      // Belgium
+            'Europe/Zurich',        // Switzerland
+            'Europe/Stockholm',     // Sweden
+            'Europe/Oslo',          // Norway
+            'Europe/Copenhagen',    // Denmark
+            'Europe/Helsinki',      // Finland
+            'Europe/Warsaw',        // Poland
+            'Europe/Prague',        // Czech Republic
+            'Europe/Vienna',        // Austria
+            'Europe/Budapest',      // Hungary
+            'Europe/Athens',        // Greece
+            'Europe/Istanbul',      // Turkey
+            'Europe/Moscow',        // Russia
+            
+            // Africa
+            'Africa/Cairo',         // Egypt
+            'Africa/Johannesburg',  // South Africa
+            'Africa/Nairobi',       // Kenya
+            'Africa/Lagos',         // Nigeria
+            'Africa/Casablanca',    // Morocco
+            'Africa/Tunis',         // Tunisia
+            
+            // Asia & Middle East
+            'Asia/Dubai',           // UAE
+            'Asia/Riyadh',          // Saudi Arabia
+            'Asia/Jerusalem',       // Israel
+            'Asia/Tehran',          // Iran
+            'Asia/Kolkata',         // India
+            'Asia/Karachi',         // Pakistan
+            'Asia/Dhaka',           // Bangladesh
+            'Asia/Bangkok',         // Thailand
+            'Asia/Singapore',       // Singapore
+            'Asia/Kuala_Lumpur',    // Malaysia
+            'Asia/Jakarta',         // Indonesia
+            'Asia/Manila',          // Philippines
+            'Asia/Hong_Kong',       // Hong Kong
+            'Asia/Shanghai',        // China
+            'Asia/Taipei',          // Taiwan
+            'Asia/Seoul',           // South Korea
+            'Asia/Tokyo',           // Japan
+            
+            // Oceania
+            'Australia/Sydney',     // Australia Eastern
+            'Australia/Melbourne',  // Australia Eastern
+            'Australia/Brisbane',   // Australia Eastern (no DST)
+            'Australia/Adelaide',   // Australia Central
+            'Australia/Perth',      // Australia Western
+            'Pacific/Auckland',     // New Zealand
+            'Pacific/Fiji',         // Fiji
+            'Pacific/Guam'          // Guam
         ];
 
         const peopleContainer = document.getElementById('people-container');
