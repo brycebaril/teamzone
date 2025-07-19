@@ -2,7 +2,7 @@
 
 A simple, elegant tool for tracking team members across different time zones with a NodeSource-inspired UI.
 
-![Timezone Tracker Screenshot](https://via.placeholder.com/800x400?text=Timezone+Tracker+Screenshot)
+![Timezone Tracker Screenshot](screenshot.png)
 
 ## Features
 
